@@ -31,7 +31,7 @@ from javax.swing.filechooser import FileNameExtensionFilter
 from ui import ParameterProcessingRulesTable
 
 
-CONTENT_PROTOBUF = ('application/x-protobuf', 'application/octet-stream')
+CONTENT_PROTOBUF = ('application/x-protobuf', 'application/octet-stream','application/x-protostuff;charset=utf-8','application/x-protostuff; charset=utf-8')
 PROTO_FILENAME_EXTENSION_FILTER = FileNameExtensionFilter("*.proto, *.py",
                                                           ["proto", "py"])
 
@@ -54,11 +54,12 @@ class BurpExtender(IBurpExtender, IMessageEditorTabFactory, ITab, IExtensionStat
         self.enabled = False
 
         try:
-            process = subprocess.Popen(['protoc', '--version'],
+            process = subprocess.Popen(['D:\protobuf\protoc-2.5.0-win32\protoc.exe', '--version'],
                                        stdin=subprocess.PIPE,
                                        stdout=subprocess.PIPE,
                                        stderr=subprocess.PIPE)
             output, error = process.communicate()
+            #libprotoc 2.5.0
             self.enabled = output.startswith('libprotoc')
 
             if error:
@@ -87,6 +88,7 @@ class BurpExtender(IBurpExtender, IMessageEditorTabFactory, ITab, IExtensionStat
 
         callbacks.setExtensionName(self.EXTENSION_NAME)
         callbacks.registerExtensionStateListener(self)
+        #it is important here
         callbacks.registerMessageEditorTabFactory(self)
         callbacks.addSuiteTab(self)
         return
@@ -141,12 +143,16 @@ class ProtobufEditorTab(IMessageEditorTab):
         mouseListener = LoadProtoMenuMouseListener(self)
         self.getUiComponent().addMouseListener(mouseListener)
 
+    # This method returns the caption that should appear on the custom tab when it is displayed.
     def getTabCaption(self):
         return self.TAB_CAPTION
 
+    # This method returns the component that should be used as the contents of the custom tab when it is displayed. 
     def getUiComponent(self):
         return self.editor.getComponent()
 
+    #The hosting editor will invoke this method before it displays a new HTTP message, so that the custom tab can indicate whether it should be enabled
+    # for that message.
     def isEnabled(self, content, isRequest):
         if not self.extender.enabled:
             return False
@@ -172,9 +178,11 @@ class ProtobufEditorTab(IMessageEditorTab):
                 value = value.lower().strip()
                 if value in CONTENT_PROTOBUF:
                     return True
-
         return False
 
+    #The hosting editor will invoke this method to display a new message or to
+    # clear the existing message. This method will only be called with a new
+    # message if the tab has already returned
     def setMessage(self, content, isRequest):
         if content is None:
             self.editor.setText(None)
@@ -238,7 +246,7 @@ class ProtobufEditorTab(IMessageEditorTab):
         # If we get to this point, then no loaded protos could deserialize
         # the message. Shelling out to protoc should be a last resort.
 
-        process = subprocess.Popen(['protoc', '--decode_raw'],
+        process = subprocess.Popen(['D:\protobuf\protoc-2.5.0-win32\protoc.exe', '--decode_raw'],
                                    stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE,
                                    stderr=subprocess.PIPE)
@@ -261,6 +269,7 @@ class ProtobufEditorTab(IMessageEditorTab):
         self._current = (content, None, info, parameter)
         return
 
+    #This method returns the currently displayed message
     def getMessage(self):
         content, message, info, parameter = self._current
 
@@ -306,9 +315,14 @@ class ProtobufEditorTab(IMessageEditorTab):
 
         return content
 
+    #This method is used to determine whether the currently displayed message
+    # has been modified by the user. The hosting editor will always call
+    # <code>getMessage()</code> before calling this method, so any pending
+    # edits should be completed within <code>getMessage()</code>.
     def isModified(self):
         return self.editor.isTextModified()
 
+    #This method is used to retrieve the data that is currently selected by the user.
     def getSelectedData(self):
         return self.editor.getSelectedText()
 
@@ -459,7 +473,7 @@ def compile_and_import_proto(proto):
     if is_proto:
         try:
             os.chdir(os.path.abspath(proto.getParent()))
-            subprocess.check_call(['protoc', '--python_out',
+            subprocess.check_call(['D:\protobuf\protoc-2.5.0-win32\protoc.exe', '--python_out',
                                   tempdir, proto.getName()])
             module = proto.getName().replace('.proto', '_pb2')
 
